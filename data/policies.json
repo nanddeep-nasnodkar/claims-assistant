@@ -1,0 +1,8 @@
+[
+    { "id": "POL-1001", "holderName": "Sample Holder One", "state": "FL",
+    "coverageLimit": 350000, "deductible": 2500, "windHailDeductiblePercent": 2 },
+  { "id": "POL-1002", "holderName": "Sample Holder Two", "state": "TX", 
+  "coverageLimit": 220000, "deductible": 1500, "windHailDeductiblePercent": 1 }
+]
+  
+  

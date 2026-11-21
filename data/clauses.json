@@ -1,0 +1,15 @@
+[
+    { "policyId": "POL-1001", "clauseId": "C-WIND", "title": "Windstorm and hail",
+    "text": "Covers physical loss caused by windstorm or hail. A percentage deductible applies." },
+  { "policyId": "POL-1001", "clauseId": "C-FLOOD", "title": "Flood exclusion",
+    "text": "Loss from flood, surface water or rising water is not covered. Flood cover is separate." },
+  { "policyId": "POL-1001", "clauseId": "C-LIMIT", "title": "Coverage limit",
+    "text": "The most we pay for any one loss is the dwelling coverage limit on the declarations." },
+  { "policyId": "POL-1001", "clauseId": "C-NOTICE", "title": "Notice of loss",
+    "text": "Give prompt notice of a loss and take reasonable steps to protect the property." },
+  { "policyId": "POL-1002", "clauseId": "C-HAIL", "title": "Windstorm and hail",
+    "text": "Covers physical loss caused by windstorm or hail. A percentage deductible applies." },
+  { "policyId": "POL-1002", "clauseId": "C-LIMIT", "title": "Coverage limit",
+    "text": "The most we pay for any one loss is the dwelling coverage limit on the declarations." }
+]
+  

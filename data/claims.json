@@ -1,0 +1,12 @@
+[
+     { "id": "CLM-2001", "policyId": "POL-1001", "dateOfLoss": "2026-08-14", "peril": "wind",
+    "description": "Roof shingles torn off in a storm; water leaked into the upstairs bedroom.",
+    "estimatedAmount": 18500 },
+  { "id": "CLM-2002", "policyId": "POL-1001", "dateOfLoss": "2026-09-02", "peril": "flood",
+    "description": "Street flooding after heavy rain entered the ground floor and ruined the flooring.",
+    "estimatedAmount": 12000 },
+  { "id": "CLM-2003", "policyId": "POL-1002", "dateOfLoss": "2026-07-21", "peril": "hail",
+    "description": "Severe hail destroyed the roof and damaged siding and windows on all sides.",
+    "estimatedAmount": 240000 }
+]
+ 
