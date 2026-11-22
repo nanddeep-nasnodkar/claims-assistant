@@ -16,7 +16,34 @@ param workloadName string = 'claims'
 param environmentName string = 'dev'
 
 @description('Optional: your Entra object ID, for Cosmos DB data access in local dev.')
-param developerPrincipalId string = '9d8db25c-5b84-42c4-9254-ad4d5bda3531'
+param developerPrincipalId string = ''
+
+@description('Name of your existing Foundry (Azure OpenAI) resource.')
+param foundryName string
+
+@description('Resource group that contains the Foundry resource.')
+param foundryResourceGroup string
+
+@description('Azure OpenAI endpoint of the Foundry resource, e.g. https://name.openai.azure.com/')
+param openAiEndpoint string
+
+@description('Deployment name of the chat model.')
+param chatDeployment string
+
+@description('Deployment name of the embedding model.')
+param embeddingDeployment string = 'text-embedding-3-small'
+
+@description('Phase 1 creates infrastructure and permissions. Phase 2 (true) also creates the apps.')
+param deployApps bool = false
+
+param mcpImageTag string = 'v1'
+param apiImageTag string = 'v1'
+
+@description('Optional CIDR allowed to call the public API, e.g. 203.0.113.7/32.')
+param allowedClientIp string = ''
+
+@description('Show the API docs page (Scalar) in the deployed API.')
+param enableApiDocs bool = false
 
 var tags = {
   workload: workloadName
@@ -33,6 +60,28 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: tags
 }
 
+// ---------- identities: one per app, so each gets only the access it needs ----------
+module mcpIdentity 'modules/identity.bicep' = {
+  scope: rg
+  name: 'mcpIdentity'
+  params: {
+    location: location
+    tags: tags
+    name: 'id-${workloadName}-mcp-${environmentName}'
+  }
+}
+
+module apiIdentity 'modules/identity.bicep' = {
+  scope: rg
+  name: 'apiIdentity'
+  params: {
+    location: location
+    tags: tags
+    name: 'id-${workloadName}-api-${environmentName}'
+  }
+}
+
+// ---------- core resources ----------
 module cosmos 'modules/cosmos.bicep' = {
   scope: rg
   name: 'cosmos'
@@ -41,6 +90,9 @@ module cosmos 'modules/cosmos.bicep' = {
     tags: tags
     accountName: 'cosmos-${workloadName}-${environmentName}-${suffix}'
     developerPrincipalId: developerPrincipalId
+    dataContributorPrincipalIds: [
+      mcpIdentity.outputs.principalId
+    ]
   }
 }
 
@@ -65,7 +117,104 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
+// ---------- permissions ----------
+module mcpAcrPull 'modules/acr-pull.bicep' = {
+  scope: rg
+  name: 'mcpAcrPull'
+  params: {
+    registryName: registry.outputs.name
+    principalId: mcpIdentity.outputs.principalId
+  }
+}
+
+module apiAcrPull 'modules/acr-pull.bicep' = {
+  scope: rg
+  name: 'apiAcrPull'
+  params: {
+    registryName: registry.outputs.name
+    principalId: apiIdentity.outputs.principalId
+  }
+}
+
+module mcpOpenAi 'modules/openai-user.bicep' = {
+  scope: resourceGroup(foundryResourceGroup)
+  name: 'mcpOpenAi'
+  params: {
+    foundryName: foundryName
+    principalId: mcpIdentity.outputs.principalId
+  }
+}
+
+module apiOpenAi 'modules/openai-user.bicep' = {
+  scope: resourceGroup(foundryResourceGroup)
+  name: 'apiOpenAi'
+  params: {
+    foundryName: foundryName
+    principalId: apiIdentity.outputs.principalId
+  }
+}
+
+// ---------- apps (phase 2) ----------
+module mcpApp 'modules/container-app.bicep' = if (deployApps) {
+  scope: rg
+  name: 'mcpApp'
+  params: {
+    location: location
+    tags: tags
+    name: 'ca-${workloadName}-mcp-${environmentName}'
+    environmentId: containerAppsEnv.outputs.id
+    identityId: mcpIdentity.outputs.id
+    registryServer: registry.outputs.loginServer
+    image: '${registry.outputs.loginServer}/claims-mcp:${mcpImageTag}'
+    externalIngress: false
+    minReplicas: 1
+    maxReplicas: 2
+    env: [
+      { name: 'AZURE_CLIENT_ID', value: mcpIdentity.outputs.clientId }
+      { name: 'Cosmos__Endpoint', value: cosmos.outputs.endpoint }
+      { name: 'Cosmos__Database', value: 'claims' }
+      { name: 'OpenAI__Endpoint', value: openAiEndpoint }
+      { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeployment }
+    ]
+  }
+  dependsOn: [
+    mcpAcrPull
+    mcpOpenAi
+  ]
+}
+
+module apiApp 'modules/container-app.bicep' = if (deployApps) {
+  scope: rg
+  name: 'apiApp'
+  params: {
+    location: location
+    tags: tags
+    name: 'ca-${workloadName}-api-${environmentName}'
+    environmentId: containerAppsEnv.outputs.id
+    identityId: apiIdentity.outputs.id
+    registryServer: registry.outputs.loginServer
+    image: '${registry.outputs.loginServer}/claims-api:${apiImageTag}'
+    externalIngress: true
+    allowedClientIp: allowedClientIp
+    minReplicas: 0
+    maxReplicas: 2
+    env: [
+      { name: 'AZURE_CLIENT_ID', value: apiIdentity.outputs.clientId }
+      { name: 'OpenAI__Endpoint', value: openAiEndpoint }
+      { name: 'OpenAI__ChatDeployment', value: chatDeployment }
+      { name: 'Mcp__Endpoint', value: 'https://${mcpApp!.outputs.fqdn}/mcp' }
+      { name: 'EnableApiDocs', value: string(enableApiDocs) }
+      { name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', value: 'true' }
+    ]
+  }
+  dependsOn: [
+    apiAcrPull
+    apiOpenAi
+  ]
+}
+
 output resourceGroupName string = rg.name
 output cosmosEndpoint string = cosmos.outputs.endpoint
 output registryLoginServer string = registry.outputs.loginServer
 output containerAppsEnvironmentName string = containerAppsEnv.outputs.name
+output apiUrl string = deployApps ? 'https://${apiApp!.outputs.fqdn}' : ''

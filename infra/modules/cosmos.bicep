@@ -11,6 +11,9 @@ param databaseName string = 'claims'
 @description('Optional Entra object ID granted the built-in Data Contributor role.')
 param developerPrincipalId string = ''
 
+@description('Object IDs of app identities granted the Data Contributor role (Day 5).')
+param dataContributorPrincipalIds array = []
+
 resource account 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   name: accountName
   location: location
@@ -150,6 +153,16 @@ resource developerAccess 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignmen
     scope: account.id
   }
 }
+
+resource appAccess 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = [for id in dataContributorPrincipalIds: {
+  parent: account
+  name: guid(account.id, id, 'data-contributor')
+  properties: {
+    roleDefinitionId: dataContributorRoleId
+    principalId: id
+    scope: account.id
+  }
+}]
 
 output endpoint string = account.properties.documentEndpoint
 output accountName string = account.name
