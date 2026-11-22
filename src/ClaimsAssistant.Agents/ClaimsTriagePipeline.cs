@@ -4,83 +4,131 @@ using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using OpenAI;
+
 namespace ClaimsAssistant.Agents;
+
 public sealed class PipelineOptions
 {
     public required Uri OpenAIEndpoint { get; init; }
     public required string ChatDeployment { get; init; }
     public Uri McpEndpoint { get; init; } = new("http://localhost:5100/mcp");
+    public GuardrailOptions GuardrailSettings { get; init; } = new();
 }
+
 public sealed class ClaimsTriagePipeline : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
+
     private readonly McpClient _mcp;
     private readonly AIAgent _intake;
     private readonly AIAgent _coverage;
     private readonly AIAgent _triage;
-    private ClaimsTriagePipeline(McpClient mcp, AIAgent intake, AIAgent coverage, AIAgent triage)
+    private readonly GuardrailOptions _guardrails;
+
+    private ClaimsTriagePipeline(
+        McpClient mcp, AIAgent intake, AIAgent coverage, AIAgent triage,
+        GuardrailOptions guardrails)
     {
         _mcp = mcp;
         _intake = intake;
         _coverage = coverage;
         _triage = triage;
+        _guardrails = guardrails;
     }
-   
-   public static async Task<ClaimsTriagePipeline> CreateAsync(
-    PipelineOptions options, CancellationToken ct = default)
-{
-    var mcp = await McpClient.CreateAsync(
-        new HttpClientTransport(new HttpClientTransportOptions
+
+    public static async Task<ClaimsTriagePipeline> CreateAsync(
+        PipelineOptions options, CancellationToken ct = default)
+    {
+        var mcp = await McpClient.CreateAsync(
+            new HttpClientTransport(new HttpClientTransportOptions
+            {
+                Name = "claims-mcp",
+                Endpoint = options.McpEndpoint,
+                TransportMode = HttpTransportMode.StreamableHttp
+            }),
+            cancellationToken: ct);
+
+        var allTools = await mcp.ListToolsAsync(cancellationToken: ct);
+
+        // Least privilege: each agent only sees the tools it needs.
+        List<AITool> Pick(params string[] names)
         {
-            Name = "claims-mcp",
-            Endpoint = options.McpEndpoint,
-            TransportMode = HttpTransportMode.StreamableHttp
-        }),
-        cancellationToken: ct);
+            var picked = allTools.Where(t => names.Contains(t.Name)).Cast<AITool>().ToList();
+            if (picked.Count != names.Length)
+                throw new InvalidOperationException(
+                    $"MCP server is missing a tool. Wanted: {string.Join(", ", names)}");
+            return picked;
+        }
 
-    var allTools = await mcp.ListToolsAsync(cancellationToken: ct);
+        var credential = new DefaultAzureCredential();
+        IChatClient chat = new AzureOpenAIClient(options.OpenAIEndpoint, credential)
+            .GetChatClient(options.ChatDeployment)
+            .AsIChatClient();
 
-    // Least privilege: each agent only sees the tools it needs.
-    List<AITool> Pick(params string[] names)
-    {
-        var picked = allTools.Where(t => names.Contains(t.Name)).Cast<AITool>().ToList();
-        if (picked.Count != names.Length)
-            throw new InvalidOperationException(
-                $"MCP server is missing a tool. Wanted: {string.Join(", ", names)}");
-        return picked;
+        AIAgent intake = chat.AsAIAgent(
+            name: "Intake", instructions: Prompts.Intake, tools: Pick("get_claim"));
+        AIAgent coverage = chat.AsAIAgent(
+            name: "Coverage", instructions: Prompts.Coverage,
+            tools: Pick("get_policy", "search_policy_clauses"));
+
+        // Day 4: the Triage agent has no tools. The application saves the result
+        // itself, after the guardrails have run.
+        AIAgent triage = chat.AsAIAgent(name: "Triage", instructions: Prompts.Triage);
+
+        return new ClaimsTriagePipeline(mcp, intake, coverage, triage, options.GuardrailSettings);
     }
 
-    IChatClient chat = new AzureOpenAIClient(options.OpenAIEndpoint, new DefaultAzureCredential())
-    .GetChatClient(options.ChatDeployment)
-    .AsIChatClient();
-
-    AIAgent intake = chat.AsAIAgent(
-        name: "Intake", instructions: Prompts.Intake, tools: Pick("get_claim"));
-    AIAgent coverage = chat.AsAIAgent(
-        name: "Coverage", instructions: Prompts.Coverage,
-        tools: Pick("get_policy", "search_policy_clauses"));
-    AIAgent triage = chat.AsAIAgent(
-        name: "Triage", instructions: Prompts.Triage, tools: Pick("save_triage_result"));
-
-    return new ClaimsTriagePipeline(mcp, intake, coverage, triage);
-}
-    public async Task<TriageOutcome> TriageAsync(string claimId)
+    public async Task<TriageReport> TriageAsync(string claimId)
     {
-        var intake = await _intake.RunAsync<IntakeFacts>(
-            $"Extract the facts for claim {claimId}.");
-            var coverage = await _coverage.RunAsync<CoverageAssessment>(
-            "Assess coverage for this claim.\nClaim facts:\n" + Show(intake.Result));
-        var triage = await _triage.RunAsync<TriageOutcome>(
-            "Produce the triage outcome and save it.\n" +
-            "Claim facts:\n" + Show(intake.Result) + "\n" +
-            "Coverage assessment:\n" + Show(coverage.Result));
-        var outcome = triage.Result;
-        if (string.IsNullOrWhiteSpace(outcome.SavedRecordId))
-            throw new InvalidOperationException(
-                "The Triage agent did not save a result (SavedRecordId is empty).");
-        return outcome;
+        var facts = (await _intake.RunAsync<IntakeFacts>(
+            $"Extract the facts for claim {claimId}.")).Result;
+
+        if (facts.DamageSummary == "NOT FOUND" || string.IsNullOrWhiteSpace(facts.PolicyId))
+            throw new ClaimNotFoundException(claimId);
+
+        var coverage = (await _coverage.RunAsync<CoverageAssessment>(
+            "Assess coverage for this claim.\nClaim facts:\n" + Show(facts))).Result;
+
+        var proposed = (await _triage.RunAsync<TriageOutcome>(
+            "Produce the triage outcome.\n" +
+            "Claim facts:\n" + Show(facts) + "\n" +
+            "Coverage assessment:\n" + Show(coverage))).Result;
+
+        var guarded = Guardrails.Apply(claimId, facts, coverage, proposed, _guardrails);
+        var savedId = await SaveAsync(guarded.Outcome);
+
+        return new TriageReport
+        {
+            Outcome = guarded.Outcome,
+            SavedRecordId = savedId,
+            GuardrailFlags = guarded.Flags,
+            PolicyId = facts.PolicyId,
+            EstimatedAmount = facts.EstimatedAmount
+        };
     }
+
+    private async Task<string> SaveAsync(TriageOutcome outcome)
+    {
+        var result = await _mcp.CallToolAsync("save_triage_result", new Dictionary<string, object?>
+        {
+            ["claimId"] = outcome.ClaimId,
+            ["decision"] = outcome.Decision,
+            ["summary"] = outcome.Summary,
+            ["needsHumanReview"] = outcome.NeedsHumanReview,
+            ["confidence"] = outcome.Confidence,
+            ["reasons"] = outcome.Reasons
+        });
+
+        var text = result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text;
+        if (result.IsError is true || string.IsNullOrWhiteSpace(text))
+            throw new InvalidOperationException(
+                "Saving the result failed: " + (text ?? "no response"));
+        return text;
+    }
+
     private static string Show<T>(T value) => JsonSerializer.Serialize(value, Pretty);
+
     public ValueTask DisposeAsync() => _mcp.DisposeAsync();
 }
