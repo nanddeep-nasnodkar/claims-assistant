@@ -1,0 +1,104 @@
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time. A newer push waits for the one in progress.
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
+  deploy:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      API_APP: ca-claims-api-dev
+      MCP_APP: ca-claims-mcp-dev
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Sign in to Azure (no stored password)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to the container registry
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push the images
+        run: |
+          TAG="${GITHUB_SHA::8}"
+          LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)"
+          docker build -f Dockerfile.mcp -t "$LOGIN_SERVER/claims-mcp:$TAG" .
+          docker build -f Dockerfile.api -t "$LOGIN_SERVER/claims-api:$TAG" .
+          docker push "$LOGIN_SERVER/claims-mcp:$TAG"
+          docker push "$LOGIN_SERVER/claims-api:$TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "LOGIN_SERVER=$LOGIN_SERVER" >> "$GITHUB_ENV"
+
+      - name: Add the Container Apps CLI extension
+        run: az extension add --name containerapp --upgrade --yes
+
+      # The MCP server first, then the API. The API reconnects to the MCP server when it starts.
+      - name: Deploy the MCP server
+        run: |
+          az containerapp update --resource-group "$RESOURCE_GROUP" --name "$MCP_APP" \
+            --image "$LOGIN_SERVER/claims-mcp:$TAG"
+
+      - name: Deploy the API
+        run: |
+          az containerapp update --resource-group "$RESOURCE_GROUP" --name "$API_APP" \
+            --image "$LOGIN_SERVER/claims-api:$TAG"
+
+      - name: Smoke test
+        run: |
+          FQDN="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_APP" \
+            --query properties.configuration.ingress.fqdn -o tsv)"
+          for attempt in $(seq 1 24); do
+            if curl --fail --silent --show-error "https://$FQDN/health"; then
+              echo
+              echo "Deployed $TAG"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The API did not become healthy in time"
+          exit 1

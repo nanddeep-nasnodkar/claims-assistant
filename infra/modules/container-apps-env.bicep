@@ -48,3 +48,4 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
 
 output name string = environment.name
 output id string = environment.id
+output workspaceId string = workspace.id

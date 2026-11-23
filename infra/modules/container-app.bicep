@@ -32,6 +32,24 @@ param maxReplicas int = 2
 @description('Environment variables as an array of { name, value } objects.')
 param env array = []
 
+@secure()
+@description('Optional shared secret. If set, it is stored as a secret and exposed as Gateway__Secret.')
+param gatewaySecret string = ''
+
+var secrets = empty(gatewaySecret) ? [] : [
+  {
+    name: 'gateway-secret'
+    value: gatewaySecret
+  }
+]
+
+var secretEnv = empty(gatewaySecret) ? [] : [
+  {
+    name: 'Gateway__Secret'
+    secretRef: 'gateway-secret'
+  }
+]
+
 var probes = [
   {
     type: 'Startup'
@@ -68,6 +86,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: secrets
       ingress: {
         external: externalIngress
         targetPort: 8080
@@ -97,7 +116,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: env
+          env: concat(env, secretEnv)
           probes: probes
         }
       ]

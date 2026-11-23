@@ -45,6 +45,13 @@ param allowedClientIp string = ''
 @description('Show the API docs page (Scalar) in the deployed API.')
 param enableApiDocs bool = false
 
+@secure()
+@description('Shared secret that the API Management gateway sends to the API. Required when deployApps is true.')
+param gatewaySecret string = ''
+
+@description('GitHub OIDC subject allowed to deploy, e.g. repo:OWNER@123/REPO@456:ref:refs/heads/main. Empty skips it.')
+param githubSubject string = ''
+
 var tags = {
   workload: workloadName
   environment: environmentName
@@ -117,6 +124,18 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
+// ---------- monitoring ----------
+module appInsights 'modules/app-insights.bicep' = {
+  scope: rg
+  name: 'appInsights'
+  params: {
+    location: location
+    tags: tags
+    name: 'appi-${workloadName}-${environmentName}'
+    workspaceId: containerAppsEnv.outputs.workspaceId
+  }
+}
+
 // ---------- permissions ----------
 module mcpAcrPull 'modules/acr-pull.bicep' = {
   scope: rg
@@ -154,6 +173,35 @@ module apiOpenAi 'modules/openai-user.bicep' = {
   }
 }
 
+// ---------- GitHub Actions deployment identity ----------
+module githubIdentity 'modules/github-identity.bicep' = if (!empty(githubSubject)) {
+  scope: rg
+  name: 'githubIdentity'
+  params: {
+    location: location
+    tags: tags
+    name: 'id-${workloadName}-github-${environmentName}'
+    subject: githubSubject
+  }
+}
+
+module githubAcrPush 'modules/acr-push.bicep' = if (!empty(githubSubject)) {
+  scope: rg
+  name: 'githubAcrPush'
+  params: {
+    registryName: registry.outputs.name
+    principalId: githubIdentity!.outputs.principalId
+  }
+}
+
+module githubContributor 'modules/rg-contributor.bicep' = if (!empty(githubSubject)) {
+  scope: rg
+  name: 'githubContributor'
+  params: {
+    principalId: githubIdentity!.outputs.principalId
+  }
+}
+
 // ---------- apps (phase 2) ----------
 module mcpApp 'modules/container-app.bicep' = if (deployApps) {
   scope: rg
@@ -175,6 +223,7 @@ module mcpApp 'modules/container-app.bicep' = if (deployApps) {
       { name: 'Cosmos__Database', value: 'claims' }
       { name: 'OpenAI__Endpoint', value: openAiEndpoint }
       { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeployment }
+      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.outputs.connectionString }
     ]
   }
   dependsOn: [
@@ -196,6 +245,7 @@ module apiApp 'modules/container-app.bicep' = if (deployApps) {
     image: '${registry.outputs.loginServer}/claims-api:${apiImageTag}'
     externalIngress: true
     allowedClientIp: allowedClientIp
+    gatewaySecret: gatewaySecret
     minReplicas: 0
     maxReplicas: 2
     env: [
@@ -205,6 +255,7 @@ module apiApp 'modules/container-app.bicep' = if (deployApps) {
       { name: 'Mcp__Endpoint', value: 'https://${mcpApp!.outputs.fqdn}/mcp' }
       { name: 'EnableApiDocs', value: string(enableApiDocs) }
       { name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', value: 'true' }
+      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.outputs.connectionString }
     ]
   }
   dependsOn: [
@@ -218,3 +269,7 @@ output cosmosEndpoint string = cosmos.outputs.endpoint
 output registryLoginServer string = registry.outputs.loginServer
 output containerAppsEnvironmentName string = containerAppsEnv.outputs.name
 output apiUrl string = deployApps ? 'https://${apiApp!.outputs.fqdn}' : ''
+output appInsightsName string = appInsights.outputs.name
+output githubClientId string = !empty(githubSubject) ? githubIdentity!.outputs.clientId : ''
+output tenantId string = tenant().tenantId
+output subscriptionId string = subscription().subscriptionId

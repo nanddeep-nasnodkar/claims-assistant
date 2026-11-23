@@ -65,7 +65,10 @@ public sealed class ClaimsTriagePipeline : IAsyncDisposable
         var credential = new DefaultAzureCredential();
         IChatClient chat = new AzureOpenAIClient(options.OpenAIEndpoint, credential)
             .GetChatClient(options.ChatDeployment)
-            .AsIChatClient();
+            .AsIChatClient()
+            .AsBuilder()
+            .UseOpenTelemetry(sourceName: ClaimsTelemetry.SourceName)
+            .Build();
 
         AIAgent intake = chat.AsAIAgent(
             name: "Intake", instructions: Prompts.Intake, tools: Pick("get_claim"));
@@ -82,22 +85,56 @@ public sealed class ClaimsTriagePipeline : IAsyncDisposable
 
     public async Task<TriageReport> TriageAsync(string claimId)
     {
-        var facts = (await _intake.RunAsync<IntakeFacts>(
-            $"Extract the facts for claim {claimId}.")).Result;
+        using var root = ClaimsTelemetry.Source.StartActivity("triage");
+        root?.SetTag("claim.id", claimId);
+
+        IntakeFacts facts;
+        using (var step = ClaimsTelemetry.Source.StartActivity("intake"))
+        {
+            facts = (await _intake.RunAsync<IntakeFacts>(
+                $"Extract the facts for claim {claimId}.")).Result;
+            step?.SetTag("claim.policy_id", facts.PolicyId);
+        }
 
         if (facts.DamageSummary == "NOT FOUND" || string.IsNullOrWhiteSpace(facts.PolicyId))
             throw new ClaimNotFoundException(claimId);
 
-        var coverage = (await _coverage.RunAsync<CoverageAssessment>(
-            "Assess coverage for this claim.\nClaim facts:\n" + Show(facts))).Result;
+        CoverageAssessment coverage;
+        using (var step = ClaimsTelemetry.Source.StartActivity("coverage"))
+        {
+            coverage = (await _coverage.RunAsync<CoverageAssessment>(
+                "Assess coverage for this claim.\nClaim facts:\n" + Show(facts))).Result;
+            step?.SetTag("coverage.decision", coverage.Decision);
+            step?.SetTag("coverage.confidence", coverage.Confidence);
+        }
 
-        var proposed = (await _triage.RunAsync<TriageOutcome>(
-            "Produce the triage outcome.\n" +
-            "Claim facts:\n" + Show(facts) + "\n" +
-            "Coverage assessment:\n" + Show(coverage))).Result;
+        TriageOutcome proposed;
+        using (var step = ClaimsTelemetry.Source.StartActivity("triage-agent"))
+        {
+            proposed = (await _triage.RunAsync<TriageOutcome>(
+                "Produce the triage outcome.\n" +
+                "Claim facts:\n" + Show(facts) + "\n" +
+                "Coverage assessment:\n" + Show(coverage))).Result;
+            step?.SetTag("triage.decision", proposed.Decision);
+        }
 
-        var guarded = Guardrails.Apply(claimId, facts, coverage, proposed, _guardrails);
-        var savedId = await SaveAsync(guarded.Outcome);
+        GuardrailResult guarded;
+        using (var step = ClaimsTelemetry.Source.StartActivity("guardrails"))
+        {
+            guarded = Guardrails.Apply(claimId, facts, coverage, proposed, _guardrails);
+            step?.SetTag("guardrails.flag_count", guarded.Flags.Count);
+            step?.SetTag("guardrails.needs_review", guarded.Outcome.NeedsHumanReview);
+        }
+
+        string savedId;
+        using (var step = ClaimsTelemetry.Source.StartActivity("save"))
+        {
+            savedId = await SaveAsync(guarded.Outcome);
+            step?.SetTag("saved.record_id", savedId);
+        }
+
+        root?.SetTag("triage.decision", guarded.Outcome.Decision);
+        root?.SetTag("triage.needs_review", guarded.Outcome.NeedsHumanReview);
 
         return new TriageReport
         {

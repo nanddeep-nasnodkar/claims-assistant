@@ -1,6 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using ClaimsAssistant.Agents;
 using Microsoft.AspNetCore.RateLimiting;
+using OpenTelemetry.Trace;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +12,20 @@ var config = builder.Configuration;
 
 string Need(string key) =>
     config[key] ?? throw new InvalidOperationException($"Missing configuration value: {key}");
+
+// The API Management gateway sends this shared secret in a header. Without it, calls are rejected.
+var gatewaySecret = config["Gateway:Secret"];
+if (string.IsNullOrWhiteSpace(gatewaySecret) && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException("Gateway:Secret is required outside Development.");
+
+// Tracing to Application Insights, only when a connection string is configured.
+if (!string.IsNullOrWhiteSpace(config["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+    builder.Services.ConfigureOpenTelemetryTracerProvider((sp, tracing) => tracing
+        .AddSource(ClaimsTelemetry.SourceName)
+        .AddSource("*Microsoft.Extensions.AI"));
+}
 
 // Requests are tiny. A small limit stops people sending large text to the model.
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 4096);
@@ -44,6 +62,24 @@ app.Lifetime.ApplicationStopping.Register(
     () => pipeline.DisposeAsync().AsTask().GetAwaiter().GetResult());
 
 app.UseExceptionHandler();
+
+// Calls that skip the gateway are rejected. /health stays open for the platform's probes.
+app.Use(async (context, next) =>
+{
+    if (!string.IsNullOrEmpty(gatewaySecret) && context.Request.Path != "/health")
+    {
+        var supplied = context.Request.Headers["X-Gateway-Secret"].ToString();
+        var matches = CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(supplied), Encoding.UTF8.GetBytes(gatewaySecret));
+        if (!matches)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+    }
+    await next();
+});
+
 app.UseRateLimiter();
 
 // API docs only in Development, or when EnableApiDocs=true (for a demo).

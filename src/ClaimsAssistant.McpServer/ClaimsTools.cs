@@ -2,19 +2,24 @@ using System.ComponentModel;
 using ClaimsAssistant.Shared;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+
 namespace ClaimsAssistant.McpServer;
+
 [McpServerToolType]
 public sealed class ClaimsTools(IClaimsStore store, IEmbedder embedder)
 {
     private static readonly HashSet<string> Decisions =
         ["covered", "partially_covered", "not_covered", "needs_review"];
+
     [McpServerTool(Name = "get_policy"),
      Description("Returns a policy's limits and deductibles for a policy ID such as POL-1001.")]
     public async Task<Policy> GetPolicy(
         [Description("Policy ID, for example POL-1001")] string policyId,
         CancellationToken ct)
-    {    
+    {
         var id = Require(policyId, nameof(policyId));
+        using var activity = McpTelemetry.Source.StartActivity("tool get_policy");
+        activity?.SetTag("claims.policy_id", id);
         return await store.GetPolicyAsync(id, ct)
             ?? throw new McpException($"Policy '{id}' was not found.");
     }
@@ -26,6 +31,8 @@ public sealed class ClaimsTools(IClaimsStore store, IEmbedder embedder)
         CancellationToken ct)
     {
         var id = Require(claimId, nameof(claimId));
+        using var activity = McpTelemetry.Source.StartActivity("tool get_claim");
+        activity?.SetTag("claims.claim_id", id);
         return await store.GetClaimAsync(id, ct)
             ?? throw new McpException($"Claim '{id}' was not found.");
     }
@@ -40,15 +47,12 @@ public sealed class ClaimsTools(IClaimsStore store, IEmbedder embedder)
     {
         var id = Require(policyId, nameof(policyId));
         var text = Require(query, nameof(query));
+        using var activity = McpTelemetry.Source.StartActivity("tool search_policy_clauses");
+        activity?.SetTag("claims.policy_id", id);
         var embedding = await embedder.EmbedAsync(text, ct);
-        return await store.SearchClausesAsync(id, embedding, Math.Clamp(topK, 1, 5), ct);
-
-        // Console.WriteLine("embedding...");
-        // var embedding = await embedder.EmbedAsync(text, ct);
-        // Console.WriteLine($"embedded: {embedding.Length} dims");
-        // var results = await store.SearchClausesAsync(id, embedding, Math.Clamp(topK, 1, 5), ct);
-        // Console.WriteLine($"searched: {results.Count} results");
-        // return results;
+        var results = await store.SearchClausesAsync(id, embedding, Math.Clamp(topK, 1, 5), ct);
+        activity?.SetTag("claims.result_count", results.Count);
+        return results;
     }
 
     [McpServerTool(Name = "save_triage_result"),
@@ -62,12 +66,12 @@ public sealed class ClaimsTools(IClaimsStore store, IEmbedder embedder)
         [Description("Short reasons, citing clause IDs where relevant")] string[] reasons,
         CancellationToken ct)
     {
-    
         var id = Require(claimId, nameof(claimId));
         if (!Decisions.Contains(decision))
             throw new McpException("decision must be one of: " + string.Join(", ", Decisions));
         if (confidence is < 0 or > 1)
             throw new McpException("confidence must be between 0 and 1.");
+
         var result = new TriageResult
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -80,10 +84,15 @@ public sealed class ClaimsTools(IClaimsStore store, IEmbedder embedder)
             Reasons = reasons ?? [],
             CreatedAtUtc = DateTime.UtcNow.ToString("O")
         };
+        using var activity = McpTelemetry.Source.StartActivity("tool save_triage_result");
+        activity?.SetTag("claims.claim_id", id);
+        activity?.SetTag("claims.decision", result.Decision);
+        activity?.SetTag("claims.needs_review", result.NeedsHumanReview);
         return await store.SaveTriageResultAsync(result, ct);
     }
+
     private static string Require(string? value, string name) =>
         string.IsNullOrWhiteSpace(value)
             ? throw new McpException($"{name} is required.")
             : value.Trim();
-    }
+}
