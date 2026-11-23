@@ -5,9 +5,9 @@ param workloadName = 'claims'
 param environmentName = 'dev'
 param developerPrincipalId = ''
 
-// Fill these in with your own values (keep this file free of secrets).
-param foundryName = 'rg-claims-fou-resource'
-param foundryResourceGroup = 'rg-claims-dev'
-param openAiEndpoint = 'https://rg-claims-fou-resource.openai.azure.com/'
-param chatDeployment = 'gpt-5-mini'
+// Fill these in with your own values, or keep them in infra/main.local.bicepparam (not committed).
+param foundryName = 'REPLACE-WITH-YOUR-FOUNDRY-RESOURCE-NAME'
+param foundryResourceGroup = 'REPLACE-WITH-ITS-RESOURCE-GROUP'
+param openAiEndpoint = 'https://REPLACE-WITH-YOUR-FOUNDRY-RESOURCE-NAME.openai.azure.com/'
+param chatDeployment = 'REPLACE-WITH-YOUR-CHAT-DEPLOYMENT-NAME'
 param embeddingDeployment = 'text-embedding-3-small'
