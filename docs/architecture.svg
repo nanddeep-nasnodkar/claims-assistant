@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="760" height="392" preserveAspectRatio="xMinYMin meet" viewBox="0 0 760 392" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="760" height="392"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-392)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="0" width="760" height="392" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="300" y="324" width="290" height="46" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="382.8795" y="349" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,698) scale(1,-1)">Application Insights</text>
+			<text x="394.22725" y="331" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,662) scale(1,-1)">traces from both apps</text>
+			<path d="M 365,265 L 365,322 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="365 322, 360.5 313, 369.5 313" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<path d="M 525,265 L 525,322 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="525 322, 520.5 313, 529.5 313" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<rect x="285" y="164" width="320" height="133" rx="14" ry="14" style="stroke: rgb(53%,52%,50%); stroke-linecap: butt; stroke-width: 0.9; fill: none; fill-rule: evenodd; stroke-dasharray: 4, 4;"/>
+			<text x="298" y="280" style="font-family: Helvetica-Bold; font-size: 11px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,560) scale(1,-1)">Azure Container Apps</text>
+			<rect x="300" y="213" width="130" height="52" rx="8" ry="8" style="stroke: rgb(5%,43%,33%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(88%,96%,93%); fill-rule: evenodd;"/>
+			<text x="354.1645" y="244" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(3%,31%,25%); stroke:none;" transform="translate(0,488) scale(1,-1)">API</text>
+			<text x="332.90675" y="226" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(5%,43%,33%); stroke:none;" transform="translate(0,452) scale(1,-1)">checks secret</text>
+			<rect x="460" y="213" width="130" height="52" rx="8" ry="8" style="stroke: rgb(32%,29%,71%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(93%,92%,99%); fill-rule: evenodd;"/>
+			<text x="489.237" y="244" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(23%,20%,53%); stroke:none;" transform="translate(0,488) scale(1,-1)">MCP server</text>
+			<text x="496.69725" y="226" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(32%,29%,71%); stroke:none;" transform="translate(0,452) scale(1,-1)">internal only</text>
+			<path d="M 430,239 L 458,239 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="458 239, 449 243.5, 449 234.5" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<rect x="10" y="213" width="80" height="52" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="31.943" y="244" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,488) scale(1,-1)">Client</text>
+			<text x="27.529999999999998" y="226" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,452) scale(1,-1)">has a key</text>
+			<rect x="120" y="213" width="130" height="52" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="132.6295" y="244" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,488) scale(1,-1)">API Management</text>
+			<text x="151.0115" y="226" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,452) scale(1,-1)">key + rate limit</text>
+			<path d="M 90,239 L 118,239 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="118 239, 109 243.5, 109 234.5" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<path d="M 250,239 L 298,239 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="298 239, 289 243.5, 289 234.5" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<text x="256" y="248" style="font-family: Helvetica; font-size: 9px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,496) scale(1,-1)">secret</text>
+			<rect x="640" y="213" width="110" height="52" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="658.1645" y="244" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,488) scale(1,-1)">Cosmos DB</text>
+			<text x="661.87775" y="226" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,452) scale(1,-1)">data + vectors</text>
+			<path d="M 590,239 L 638,239 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="638 239, 629 243.5, 629 234.5" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<rect x="300" y="74" width="290" height="46" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="387.943" y="99" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,198) scale(1,-1)">Microsoft Foundry</text>
+			<text x="379.0495" y="81" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,162) scale(1,-1)">chat and embedding models</text>
+			<path d="M 365,213 L 365,122 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="365 122, 369.5 131, 360.5 131" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<path d="M 525,213 L 525,122 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="525 122, 529.5 131, 520.5 131" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<text x="373" y="137" style="font-family: Helvetica; font-size: 9px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,274) scale(1,-1)">chat</text>
+			<text x="533" y="137" style="font-family: Helvetica; font-size: 9px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,274) scale(1,-1)">embeddings</text>
+			<rect x="10" y="146" width="175" height="46" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="39.351" y="171" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,342) scale(1,-1)">Container Registry</text>
+			<text x="55.20075" y="153" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,306) scale(1,-1)">images by commit</text>
+			<path d="M 185,169 L 283,169 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="283 169, 274 173.5, 274 164.5" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<text x="200" y="176" style="font-family: Helvetica; font-size: 9px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,352) scale(1,-1)">images</text>
+			<rect x="10" y="54" width="175" height="46" rx="8" ry="8" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.9; fill: rgb(94%,93%,90%); fill-rule: evenodd;"/>
+			<text x="50.193" y="79" style="font-family: Helvetica-Bold; font-size: 13px;fill: rgb(17%,17%,16%); stroke:none;" transform="translate(0,158) scale(1,-1)">GitHub Actions</text>
+			<text x="56.6445" y="61" style="font-family: Helvetica; font-size: 10.5px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,122) scale(1,-1)">build, test, deploy</text>
+			<path d="M 97,100 L 97,144 Z" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 1.3;"/>
+			<polygon points="97 144, 92.5 135, 101.5 135" style="stroke: rgb(37%,36%,35%); stroke-linecap: butt; stroke-width: 0.5; fill: rgb(37%,36%,35%); fill-rule: evenodd;"/>
+			<text x="10" y="20" style="font-family: Helvetica; font-size: 10px;fill: rgb(37%,36%,35%); stroke:none;" transform="translate(0,40) scale(1,-1)">Each app uses its own managed identity for the models, the registry and (MCP server) Cosmos DB. No keys are stored.</text>
+		</g>
+	</g>
+</svg>

@@ -485,3 +485,5 @@ $RECYCLE.BIN/
 infra/main.json
 body.json
 infra/main.local.bicepparam
+*.local.ps1
+*.local.ps1
