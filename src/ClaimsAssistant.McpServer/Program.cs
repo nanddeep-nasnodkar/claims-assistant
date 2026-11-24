@@ -15,7 +15,12 @@ string Need(string key) =>
 var databaseName = config["Cosmos:Database"] ?? "claims";
 
 // Uses your az login locally and the managed identity once deployed (Day 5).
-var credential = new DefaultAzureCredential();
+var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+{
+    // Managed identity only when the deployment provides one (AZURE_CLIENT_ID); skipped locally.
+    ExcludeManagedIdentityCredential =
+        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AZURE_CLIENT_ID"))
+});
 
 var cosmos = new CosmosClient(Need("Cosmos:Endpoint"), credential, new CosmosClientOptions
 {

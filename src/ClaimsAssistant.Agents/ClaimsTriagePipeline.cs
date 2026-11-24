@@ -62,7 +62,13 @@ public sealed class ClaimsTriagePipeline : IAsyncDisposable
             return picked;
         }
 
-        var credential = new DefaultAzureCredential();
+        // Use the managed identity only when the app has one (AZURE_CLIENT_ID is set by the
+        // deployment). On your own PC it is skipped, so az login is used without delay.
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            ExcludeManagedIdentityCredential =
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AZURE_CLIENT_ID"))
+        });
         IChatClient chat = new AzureOpenAIClient(options.OpenAIEndpoint, credential)
             .GetChatClient(options.ChatDeployment)
             .AsIChatClient()
