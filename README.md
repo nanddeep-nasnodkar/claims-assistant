@@ -8,7 +8,7 @@ saves the result. Built in C# on Azure in one week as a portfolio project.
 
 > All data is synthetic. This is a demonstration, not insurance advice.
 
-<!-- Add after recording: [Watch the 2-minute demo](PASTE-VIDEO-LINK) -->
+[Watch the 2-minute demo](https://youtu.be/SFPpQqM_i20)
 
 ## What it does
 
